@@ -284,7 +284,7 @@ where
     fn iter_effects<'a>(
         &self,
         effects: &'a SampleEffects,
-    ) -> QueryManyUniqueIter<'_, 's, D::ReadOnly, F, OrderedEntitySetIter<'a>>;
+    ) -> core::iter::Flatten<QueryManyUniqueIter<'_, 's, D::ReadOnly, F, OrderedEntitySetIter<'a>>>;
 
     /// Mutably iterate over all effects entities that match the query.
     ///
@@ -308,7 +308,7 @@ where
     fn iter_effects_mut<'a>(
         &mut self,
         effects: &'a SampleEffects,
-    ) -> QueryManyUniqueIter<'_, 's, D, F, OrderedEntitySetIter<'a>>;
+    ) -> core::iter::Flatten<QueryManyUniqueIter<'_, 's, D, F, OrderedEntitySetIter<'a>>>;
 }
 
 impl<'s, D, F> EffectsQuery<'s, D, F> for Query<'_, 's, D, F>
@@ -320,12 +320,12 @@ where
         &self,
         effects: &SampleEffects,
     ) -> Result<ROQueryItem<'_, 's, D>, EffectsQueryError> {
-        if self.iter_many_unique(effects.iter()).count() > 1 {
+        if self.iter_many_unique(effects.iter()).flatten().count() > 1 {
             return Err(EffectsQueryError::MatchedMultiple);
         }
 
         self.iter_many_unique(effects.iter())
-            .next()
+            .find_map(Result::ok)
             .ok_or(EffectsQueryError::MatchedNone)
     }
 
@@ -333,26 +333,28 @@ where
         &mut self,
         effects: &SampleEffects,
     ) -> Result<D::Item<'_, 's>, EffectsQueryError> {
-        if self.iter_many_unique(effects.iter()).count() > 1 {
+        if self.iter_many_unique(effects.iter()).flatten().count() > 1 {
             return Err(EffectsQueryError::MatchedMultiple);
         }
 
         self.iter_many_unique_mut(effects.iter())
-            .next()
+            .find_map(Result::ok)
             .ok_or(EffectsQueryError::MatchedNone)
     }
 
     fn iter_effects<'a>(
         &self,
         effects: &'a SampleEffects,
-    ) -> QueryManyUniqueIter<'_, 's, D::ReadOnly, F, OrderedEntitySetIter<'a>> {
-        self.iter_many_unique(effects.iter())
+    ) -> core::iter::Flatten<QueryManyUniqueIter<'_, 's, D::ReadOnly, F, OrderedEntitySetIter<'a>>>
+    {
+        // Effects that do not match the query are skipped, as they always were.
+        self.iter_many_unique(effects.iter()).flatten()
     }
 
     fn iter_effects_mut<'a>(
         &mut self,
         effects: &'a SampleEffects,
-    ) -> QueryManyUniqueIter<'_, 's, D, F, OrderedEntitySetIter<'a>> {
-        self.iter_many_unique_mut(effects.iter())
+    ) -> core::iter::Flatten<QueryManyUniqueIter<'_, 's, D, F, OrderedEntitySetIter<'a>>> {
+        self.iter_many_unique_mut(effects.iter()).flatten()
     }
 }
